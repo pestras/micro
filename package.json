@@ -1,0 +1,38 @@
+{
+  "name": "@pestras/micro",
+  "version": "0.0.1",
+  "description": "Nodejs typescript microservice",
+  "main": "index.js",
+  "types": "index.ts",
+  "scripts": {
+    "test": "test",
+    "tsc": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pestras/microservice.git"
+  },
+  "keywords": [
+    "nodejs",
+    "microservice",
+    "typescript",
+    "javascript",
+    "nats",
+    "socketio",
+    "cluster",
+    "rest"
+  ],
+  "author": "Pestras",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/pestras/microservice/issues"
+  },
+  "homepage": "https://github.com/pestras/microservice#readme",
+  "devDependencies": {
+    "typescript": "^3.9.6"
+  },
+  "dependencies": {
+    "@pestras/toolbox": "^1.1.7",
+    "@types/node": "^14.0.22"
+  }
+}
