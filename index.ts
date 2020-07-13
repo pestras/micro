@@ -117,7 +117,7 @@ process
 
 /** Service Core Events Interface */
 export interface ServiceEvents {
-  onHttpMsg(msg: http.IncomingMessage, response: http.ServerResponse): void;
+  onHTTPMsg?(msg: http.IncomingMessage, response: http.ServerResponse): void;
   onLog?: (level: LOGLEVEL, msg: string, meta: any) => void;
   onInit?: () => void | Promise<void>;
   onReady?: () => void;
@@ -134,7 +134,7 @@ export abstract class MicroPlugin {
 
   abstract init(http: http.Server, service: Readonly<{ [key: string]: any }>): void | Promise<void>;
 
-  onHttpMessage?(msg: http.IncomingMessage, response: http.ServerResponse): void;
+  onHTTPMsg?(msg: http.IncomingMessage, response: http.ServerResponse): void;
 
   onExit?(code: number, signal: NodeJS.Signals): void;
 }
@@ -216,34 +216,44 @@ export class Micro {
         if (key && typeof service[key] === "function") service[key](msg.data);
       });
 
+    
     logger.info('initializing Http server');
+    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/healthcheck - GET initialized`);
+    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/readiness - GET initialized`);
+    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/liveness - GET initialized`);
     HTTPServer = http.createServer(async (httpMsg, httpResponse) => {
+      logger.info(`${httpMsg.method} - ${httpMsg.url}`);
+      httpResponse.once('close', () => {
+        if (httpResponse.statusCode < 500) logger.info(`response ${httpResponse.statusCode} ${httpMsg.url}`);
+        else logger.error(`response ${httpResponse.statusCode} ${httpMsg.url}`);
+      });
+
       if (httpMsg.method.toLowerCase() === 'get') {
-        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/healthcheck`)) {
+        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/healthcheck`) > -1) {
           if (typeof service.onHealthcheck === "function") return service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
-        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/readiness`)) {
+        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/readiness`) > -1) {
           if (typeof service.onReadycheck === "function") return service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
-        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/liveness`)) {
+        if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/liveness`) > -1) {
           if (typeof service.onLivecheck === "function") return service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
       }
 
       if (typeof service.onHTTPMsg === "function") {
-        service.onHTTPMsg(httpMsg, httpResponse);
+        return service.onHTTPMsg(httpMsg, httpResponse);
 
       } else if (this._plugins.length > 0) {
         for (let plugin of this._plugins) {
-          if (typeof plugin.onHttpMessage === 'function') {
-            plugin.onHttpMessage(httpMsg, httpResponse);
-            break;
-          }
+          if (typeof plugin.onHTTPMsg === 'function') return plugin.onHTTPMsg(httpMsg, httpResponse);
         }
       }
+
+      httpResponse.statusCode = 404;
+      httpResponse.end();
     });
 
     if (this._plugins.length > 0) {
