@@ -7,7 +7,7 @@ Although **PMS** is almost empty of features, its strength comes handy through i
 ## Official Plugins
 
 * **@pestras/micro-router**: Adds support for HTTP Rest services with very handfull routing feature.
-* **@pestras/micro-socket.io**: Adds support for SocketIO connection with plenty of usefull decorators.
+* **@pestras/micro-socket**: Adds support for SocketIO connection with plenty of usefull decorators.
 * **@pestras/micro-nats**: Adds support for Nats Server messaging system.
 * **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system - *in development*.
 
@@ -165,6 +165,24 @@ class Publisher {
   
   // some where in your service
   Micro.message('some message', { key: 'value' });
+}
+```
+
+Also it is made easy to restart all workers or the current one.
+
+```ts
+import { SERVICE, Micro } from '@pestras/microservice';
+
+@SERVICE({ workers: 4 })
+class Publisher {
+
+  // some where in our service
+
+  // restarting all workers
+  Micro.message('restart all');
+
+  // restarting the current worker
+  Micro.message('restart');
 }
 ```
 
