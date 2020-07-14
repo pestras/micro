@@ -139,6 +139,10 @@ export class Micro {
   static get server() { return this._server; }
   static get config() { return serviceConfig as Readonly<ServiceConfig & { name: string }>; }
 
+  static plugin(plugin: MicroPlugin) {
+    if (!this._plugins.includes(plugin)) this._plugins.push(plugin);
+  }
+
   /**
    * Sends a message to other workers
    * @param msg string
