@@ -1,6 +1,6 @@
 {
   "name": "@pestras/micro",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Nodejs typescript microservice",
   "main": "index.js",
   "types": "index.ts",
@@ -29,10 +29,10 @@
   },
   "homepage": "https://github.com/pestras/microservice#readme",
   "devDependencies": {
-    "typescript": "^3.9.6"
+    "typescript": "^3.9.6",
+    "@types/node": "^14.0.22"
   },
   "dependencies": {
-    "@pestras/toolbox": "^1.1.7",
-    "@types/node": "^14.0.22"
+    "@pestras/toolbox": "^1.1.7"
   }
 }
