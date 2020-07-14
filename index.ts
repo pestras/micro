@@ -28,22 +28,8 @@ interface ProcessMsgsListeners {
 /** Worker Msgs Listeners Repo */
 const processMsgsListners: ProcessMsgsListeners = {};
 
-// Globals
-let HTTPServer: http.Server;
-let service: Service;
-let logger = new Logger();
-
 /** Supported HTTP methods */
 export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-
-/** Default CORS Headers */
-const DEFAULT_CORS: http.IncomingHttpHeaders & { 'response-code'?: string } = {
-  'access-control-allow-methods': "GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE",
-  'access-control-allow-origin': "*",
-  'access-control-allow-headers': "*",
-  'Access-Control-Allow-Credentials': 'false',
-  'response-code': '204'
-}
 
 /** Service decorator config interface */
 export interface ServiceConfig {
@@ -56,7 +42,6 @@ export interface ServiceConfig {
   transferLog?: boolean;
   exitOnUnhandledException?: boolean;
   exitOnInhandledRejection?: boolean;
-  cors?: http.IncomingHttpHeaders & { 'response-code'?: string };
 }
 
 /** Service config object */
@@ -69,7 +54,6 @@ let serviceConfig: ServiceConfig & { name: string };
  */
 export function SERVICE(config: ServiceConfig = {}) {
   return (constructor: any) => {
-    let cors = Object.assign({}, DEFAULT_CORS);
     let name = config.kebabCase === false ? constructor.name.toLowerCase() : toKebabCasing(constructor.name).toLowerCase();
 
     serviceConfig = {
@@ -81,8 +65,7 @@ export function SERVICE(config: ServiceConfig = {}) {
       exitOnUnhandledException: config.exitOnUnhandledException === undefined ? true : !!config.exitOnUnhandledException,
       exitOnInhandledRejection: config.exitOnInhandledRejection === undefined ? true : !!config.exitOnInhandledRejection,
       port: config.port || 3000,
-      host: config.host || '0.0.0.0',
-      cors: Object.assign(cors, config.cors || {})
+      host: config.host || '0.0.0.0'
     };
   }
 }
@@ -105,13 +88,13 @@ export function WORKER_MSG(processMsg: string) {
  */
 process
   .on('unhandledRejection', (reason, p) => {
-    logger.error('Unhandled Rejection', { reason });
-    if (service && typeof service.onUnhandledRejection === "function") service.onUnhandledRejection(reason, p);
+    Micro.logger.error('Unhandled Rejection', { reason });
+    if (Micro.service && typeof Micro.service.onUnhandledRejection === "function") Micro.service.onUnhandledRejection(reason, p);
     else if (serviceConfig) serviceConfig.exitOnInhandledRejection && Micro.exit(1, "SIGTERM");
   })
   .on('uncaughtException', err => {
-    logger.error('uncaughtException', { err });
-    if (service && typeof service.onUnhandledException === "function") service.onUnhandledException(err);
+    Micro.logger.error('uncaughtException', { err });
+    if (Micro.service && typeof Micro.service.onUnhandledException === "function") Micro.service.onUnhandledException(err);
     else if (serviceConfig) serviceConfig.exitOnUnhandledException && Micro.exit(1, "SIGTERM");
   });
 
@@ -132,7 +115,7 @@ export interface ServiceEvents {
 /** Micro Plugin Abstract Class */
 export abstract class MicroPlugin {
 
-  abstract init(http: http.Server, service: Readonly<{ [key: string]: any }>): void | Promise<void>;
+  abstract init(): void | Promise<void>;
 
   onHTTPMsg?(msg: http.IncomingMessage, response: http.ServerResponse): void;
 
@@ -145,11 +128,16 @@ export abstract class MicroPlugin {
  * Starts Service
  */
 export class Micro {
+  private static _service: Service;
+  private static _server: http.Server;
   /** plugins repo */
   private static _plugins: MicroPlugin[] = [];
 
-  static logger = logger;
+  static logger = new Logger();
   static get status() { return status; }
+  static get service() { return this._service; }
+  static get server() { return this._server; }
+  static get config() { return serviceConfig as Readonly<ServiceConfig & { name: string }>; }
 
   /**
    * Sends a message to other workers
@@ -168,16 +156,16 @@ export class Micro {
    */
   static exit(code = 0, signal: NodeJS.Signals = "SIGTERM") {
     status = MICRO_STATUS.EXIT;
-    logger.warn(`cleaning up before exit`);
+    Micro.logger.warn(`cleaning up before exit`);
 
     if (this._plugins.length)
       for (let plugin of this._plugins)
         if (typeof plugin.onExit === 'function') plugin.onExit(code, signal);
 
-    if (typeof service.onExit === 'function') service.onExit(code, signal);
+    if (typeof Micro._service.onExit === 'function') Micro._service.onExit(code, signal);
 
-    HTTPServer.close();
-    logger.warn(`service exited with signal: ${signal}, code: ${code}`);
+    this.server.close();
+    Micro.logger.warn(`service exited with signal: ${signal}, code: ${code}`);
     process.exit(code);
   }
 
@@ -188,23 +176,23 @@ export class Micro {
    */
   static async start(ServiceClass: any, ...args: any[]) {
     if (cluster.isMaster && !!serviceConfig.workers) {
-      new WorkersManager(logger, serviceConfig.workers);
+      new WorkersManager(Micro.logger, serviceConfig.workers);
       return;
     }
 
-    service = new ServiceClass(...args);
-    logger.level = serviceConfig.logLevel;
+    this._service = new ServiceClass(...args);
+    Micro.logger.level = serviceConfig.logLevel;
 
-    if (typeof service.log === 'function' && serviceConfig.transferLog)
-      logger.transferTo(service);
+    if (typeof Micro._service.log === 'function' && serviceConfig.transferLog)
+      Micro.logger.transferTo(Micro._service);
 
-    if (typeof service.onInit === "function") {
-      let promise: Promise<any> = service.onInit();
+    if (typeof Micro._service.onInit === "function") {
+      let promise: Promise<any> = Micro._service.onInit();
       if (promise && typeof promise.then === "function") {
         try {
           await promise;
         } catch (error) {
-          logger.error(error);
+          Micro.logger.error(error);
         }
       }
     }
@@ -213,38 +201,35 @@ export class Micro {
       process.on('message', (msg: WorkerMessage) => {
         if (msg.message === 'publish') return;
         let key = processMsgsListners[msg.message];
-        if (key && typeof service[key] === "function") service[key](msg.data);
+        if (key && typeof Micro._service[key] === "function") Micro._service[key](msg.data);
       });
 
     
-    logger.info('initializing Http server');
-    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/healthcheck - GET initialized`);
-    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/readiness - GET initialized`);
-    logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/liveness - GET initialized`);
-    HTTPServer = http.createServer(async (httpMsg, httpResponse) => {
-      logger.info(`${httpMsg.method} - ${httpMsg.url}`);
+    Micro.logger.info('initializing Http server');
+    this._server = http.createServer(async (httpMsg, httpResponse) => {
+      Micro.logger.info(`${httpMsg.method} - ${httpMsg.url}`);
       httpResponse.once('close', () => {
-        if (httpResponse.statusCode < 500) logger.info(`response ${httpResponse.statusCode} ${httpMsg.url}`);
-        else logger.error(`response ${httpResponse.statusCode} ${httpMsg.url}`);
+        if (httpResponse.statusCode < 500) Micro.logger.info(`response ${httpResponse.statusCode} ${httpMsg.url}`);
+        else Micro.logger.error(`response ${httpResponse.statusCode} ${httpMsg.url}`);
       });
 
       if (httpMsg.method.toLowerCase() === 'get') {
         if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/healthcheck`) > -1) {
-          if (typeof service.onHealthcheck === "function") return service.onHealthcheck(httpResponse);
+          if (typeof Micro._service.onHealthcheck === "function") return Micro._service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
         if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/readiness`) > -1) {
-          if (typeof service.onReadycheck === "function") return service.onHealthcheck(httpResponse);
+          if (typeof Micro._service.onReadycheck === "function") return Micro._service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
         if (httpMsg.url.indexOf(`${serviceConfig.name}/v${serviceConfig.version}/liveness`) > -1) {
-          if (typeof service.onLivecheck === "function") return service.onHealthcheck(httpResponse);
+          if (typeof Micro._service.onLivecheck === "function") return Micro._service.onHealthcheck(httpResponse);
           else return httpResponse.end();
         }
       }
 
-      if (typeof service.onHTTPMsg === "function") {
-        return service.onHTTPMsg(httpMsg, httpResponse);
+      if (typeof Micro._service.onHTTPMsg === "function") {
+        return Micro._service.onHTTPMsg(httpMsg, httpResponse);
 
       } else if (this._plugins.length > 0) {
         for (let plugin of this._plugins) {
@@ -255,16 +240,20 @@ export class Micro {
       httpResponse.statusCode = 404;
       httpResponse.end();
     });
+    
+    Micro.logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/healthcheck - GET initialized`);
+    Micro.logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/readiness - GET initialized`);
+    Micro.logger.info(`route: ${serviceConfig.name}/v${serviceConfig.version}/liveness - GET initialized`);
 
     if (this._plugins.length > 0) {
       for (let plugin of this._plugins) {
         if (typeof plugin.init === 'function') {
-          let promise = <Promise<void>>plugin.init(HTTPServer, service);
+          let promise = <Promise<void>>plugin.init();
           if (promise && typeof promise.then === 'function') {
             try {
               await promise;
             } catch (error) {
-              logger.error(error);
+              Micro.logger.error(error);
             }
           }
         }
@@ -272,15 +261,15 @@ export class Micro {
     }
 
     status = MICRO_STATUS.LIVE;
-    if (typeof service.onReady === 'function') service.onReady();
+    if (typeof Micro._service.onReady === 'function') Micro._service.onReady();
 
     process.on('SIGTERM', (signal) => Micro.exit(0, signal));
     process.on('SIGHUP', (signal) => Micro.exit(0, signal));
     process.on('SIGINT', (signal) => Micro.exit(0, signal));
 
-    HTTPServer.listen(
+    Micro._server.listen(
       serviceConfig.port,
       serviceConfig.host,
-      () => logger.info(`running http server on port: ${serviceConfig.port}, pid: ${process.pid}`));
+      () => Micro.logger.info(`running http server on port: ${serviceConfig.port}, pid: ${process.pid}`));
   }
 }
