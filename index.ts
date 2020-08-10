@@ -90,7 +90,10 @@ process
   .on('unhandledRejection', (reason, p) => {
     Micro.logger.error('Unhandled Rejection', { reason });
     if (Micro.service && typeof Micro.service.onUnhandledRejection === "function") Micro.service.onUnhandledRejection(reason, p);
-    else if (serviceConfig) serviceConfig.exitOnInhandledRejection && Micro.exit(1, "SIGTERM");
+    else {
+      if (p) p.catch(err => Micro.logger.error(err));
+      if (serviceConfig) serviceConfig.exitOnInhandledRejection && Micro.exit(1, "SIGTERM");
+    }
   })
   .on('uncaughtException', err => {
     Micro.logger.error('uncaughtException', { err });
