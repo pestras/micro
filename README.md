@@ -9,7 +9,7 @@ Although **PMS** is almost empty of features, its strength comes handy through i
 * **@pestras/micro-router**: Adds support for HTTP Rest services with very handfull routing feature.
 * **@pestras/micro-socket**: Adds support for SocketIO connection with plenty of usefull decorators.
 * **@pestras/micro-nats**: Adds support for Nats Server messaging system.
-* **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system - *in development*.
+* **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system - *in development not published yet*.
 
 # Template
 
@@ -32,16 +32,11 @@ class Test {}
 
 Name        | Type     | Defualt         | Description
 ----        | -----    | ------          | -----
-version     | number   | 0               | Current verion of our service, versions are used on rest resource */someservice/v1/...*.
-kebabCase   | boolean  | true            | convert class name to kebekCasing as *ArticlesQueryAPI* -> *articles-query-api*
-port        | number   | 3000            | Http server listening port.   
-host        | string   | 0.0.0.0         | Http server host.
 workers     | number   | 0               | Number of node workers to run, if assigned to minus value will take max number of workers depending on os max cpus number
 logLevel    | LOGLEVEL | LOGLEVEL.INFO   |
 tranferLog  | boolean  | false           | Allow logger to transfer logs to the service **onLog** method
 exitOnUnhandledException | boolean | true |
 exitOnUnhandledRejection | boolean | true |
-cors | IncomingHttpHeaders & { 'success-code'?: string } | [see cors](#cors) | CORS for preflights requests
 
 #### LOGLEVEL Enum
 
@@ -52,34 +47,7 @@ cors | IncomingHttpHeaders & { 'success-code'?: string } | [see cors](#cors) | C
 - LOGLEVEL.INFO
 - LOGLEVEL.DEBUG
 
-### Cors
-
-**PM** default cors options are:
-
-```
-'access-control-allow-methods': "GET,HEAD,OPTIONS,PUT,PATCH,POST,DELETE",
-'access-control-allow-origin': "*",
-'access-control-allow-headers': "*",
-'Access-Control-Allow-Credentials': 'false',
-'response-code': '204'
-```
-
-To change that, overwrite new values into cors options
-
-```ts
-@SERVICE({
-  version: 1,
-  cors: {
-    'access-control-allow-methods': "GET,PUT,POST,DELETE",
-    'access-control-allow-headers': "content-type"
-  }
-})
-class Test {}
-```
-
 ## Micro
-
-Before delving into service routes, subjects.. etc, let's find out how to run our service..
 
 After defining our service class we use the **Micro** object to run our service through the *start* method.
 
@@ -94,34 +62,51 @@ export class TEST {}
 Micro.start(Test);
 ```
 
-**Micro.start** method accepts additionl optional arguments that will be passed to service constructor in order
-
-```ts
-import { SERVICE, Micro } from '@pestras/microservice';
-import { config } from './config'; 
-
-@SERVICE({
-  // service config
-})
-export class TEST {
-  constructor(config: MyConf) {
-    // handle configurations
-  }
-}
-
-Micro.start(Test, config);
-```
-
 **Micro** object has another properties and methods that indeed we are going to use as well later in the service.
 
 Name | Type | Description
 --- | --- | ---
 status | MICRO_STATUS | INIT \| EXIT\| LIVE
 logger | Logger | Micro logger instance
+store | { [key: string]: any } | data store shared among main service and the all subservices and plugins.
 message | (msg: string, data: WorkerMessage, target: 'all' \| 'others') => void | A helper method to broadcast a message between workers
 exit | (code: number = 0, signal: NodeJs.Signal = "SIGTERM") => void | Used to stop service
 plugin | (plugin: MicroPlugin) => void | The only way to inject plugins to our service
 
+# Sub Services
+
+*PM* gives us the ability to modulerize our service into subservices for better code splitting.
+
+SubServices are classes that are defined in seperate modules, then imported to the main service module then passed to *Micro.start()* method to be implemented.
+
+```ts
+// comments.service.ts
+import { SubServiceEvents } from '@pestras/microservice';
+
+export class Comments implements SubServiceEvents {
+
+  async onInit() {}
+}
+```
+
+```ts
+// main.ts
+import { Micro, SERVICE, ServiceEvents } from '@pestras/microservice';
+import { Comments} from './comments.service'
+
+@SERVICE()
+class Articles {
+
+  onInit() {    
+    Micro.store.someSharedValue = "shared value";
+  }
+}
+
+// pass sub services as an array to the second argument of Micro.start method
+Micro.start(Articles, [Comments]);
+```
+
+Subservices have their own events *onInit, onReady, onStdin and onExit*.
 
 # Cluster
 
@@ -186,6 +171,43 @@ class Publisher {
 }
 ```
 
+# Plugins
+
+To create our own plugins, it is just easy as creating a sub service as follows:
+
+```ts
+import { MICRO, MicroPlugin } from '@pestras/micro';
+
+export interface PluginConfigInterface {}
+
+class MyPlugin extends MicroPlugin {
+
+  constructor(private config: PluginConfigInterface) {
+    
+  }
+
+  async init() {} // init method is required
+
+  onReady() {}
+
+  onStdin() {}
+
+  onStdinEnd() {}
+
+  onExit() {}
+}
+
+export { MyPlugin }; 
+```
+
+```ts {
+  import { Micro } from '@pestras/micro';
+  import { MyPlugin } from 'mypluginPath';
+
+  Micro.plugin(new MyPlugin(config));
+}
+```
+
 # Lifecycle & Events Methods
 
 **PMS** will try to call some service methods in specific time or action if they were already defined in our service.
@@ -241,7 +263,7 @@ class Publisher implements ServiceEvents {
 }
 ```
 
-## OnLog
+## onLog
 
 **PMS** has a built in lightweight logger that logs everything to the console.
 
@@ -249,10 +271,9 @@ In order to change that behavior we can define **onLog** event method in our ser
 options in service config.
 
 ```ts
-import { SERVICE, SUBJECT, Micro, ServiceEvents } from '@pestras/microservice';
+import { SERVICE, Micro, ServiceEvents } from '@pestras/microservice';
 
 @SERVICE({
-  version: 1
   transferLog: process.env.NODE_ENV === 'production'
 })
 class Test implements ServiceEvents {
@@ -267,72 +288,23 @@ class Test implements ServiceEvents {
 }
 ```
 
-## onHealthcheck
+## onStdin, onStdinEnd
 
-An event triggered for docker swarm healthcheck.
+**PMS** listens to **stdin** by default unless it is disabled in service config decorator, it will call this event whenerver inputs are injected to stdin.
 
 ```ts
-@SERVICE()
-class Publisher implements ServiceEvents {
+import { SERVICE, Micro, ServiceEvents } from '@pestras/microservice';
 
-  // http: GET /healthcheck
-  async onHealthcheck(res: Response) {
-    // check for database connection
-    if (dbConnected) res.status(200).end();
-    else res.status(500).end()
+@SERVICE()
+class Test implements ServiceEvents {
+
+  onStdin(chunk: Buffer) {
+    console.log(chunk.toString());
   }
+
+  onStdinEnd() {}
 }
 ```
-
-## onReadycheck
-
-An event triggered for kubernetes ready check.
-
-```ts
-@SERVICE()
-class Publisher implements ServiceEvents {
-
-  // http: GET /readiness
-  async onReadycheck(res: Response) {
-    // check for database connection
-    if (dbConnected) res.status(200).end();
-    else res.status(500).end()
-  }
-}
-```
-
-## onLivecheck
-
-An event triggered for kubernetes live check.
-
-```ts
-@SERVICE()
-class Publisher implements ServiceEvents {
-
-  // http: GET /liveness
-  async onLivecheck(res: Response) {
-    // check for database connection
-    if (dbConnected) res.status(200).end();
-    else res.status(500).end()
-  }
-}
-```
-
-## onHTTPMsg
-
-Called whenever a new http request is received, passing the Request and Response instances as arguments;
-
-```ts
-import { IncomingMessage, ServerResponse } from 'http;
-@SERVICE()
-class Publisher implements ServiceEvents {
-
-  async onHTTPMsg(req: IncomingMessage, res: ServerResponse) { }
-}
-```
-
-**Note:** onHttpMsg event could be used by plugins as well, however the restiction is that only consumer can utilize this event others will be ignored,
-service instance has the top priority on this one.
 
 ## onUnhandledRejection
 
@@ -371,7 +343,7 @@ class Publisher implements ServiceEvents {
 For health check in Dockerfile or docker-compose
 
 ```Dockerfile
-HEALTHCHECK --interval=1m30s --timeout=2s --start_period=10s CMD node ./node_modules/@pestras/microservice/hc.js /articles/v0 3000
+HEALTHCHECK --interval=30s --timeout=2s CMD node ./node_modules/@pestras/microservice/hc.js /articles/v0 3000
 ```
 
 ```yml
@@ -382,6 +354,6 @@ healthcheck:
   retries: 3
   start_period: 40s
 ```
-Root path is required as the first parameter, while port defaults to 3000.
+Root path is required as the first parameter, while port defaults to 3000, however router plugin should be used
 
 Thank you
