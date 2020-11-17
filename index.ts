@@ -204,6 +204,11 @@ export class Micro {
     if (typeof Micro._service.log === 'function' && serviceConfig.transferLog)
       Micro.logger.transferTo(Micro._service);
 
+    process
+      .on('SIGTERM', (signal) => Micro.exit(0, signal))
+      .on('SIGHUP', (signal) => Micro.exit(0, signal))
+      .on('SIGINT', (signal) => Micro.exit(0, signal));
+
 
     if (Micro._plugins.length > 0) {
       for (let plugin of Micro._plugins) {
@@ -256,11 +261,6 @@ export class Micro {
 
     for (let subService of Micro._subServicesList)
       if (typeof subService.onReady === "function") subService.onReady();
-
-    process
-      .on('SIGTERM', (signal) => Micro.exit(0, signal))
-      .on('SIGHUP', (signal) => Micro.exit(0, signal))
-      .on('SIGINT', (signal) => Micro.exit(0, signal));
 
     if (this.config.stdin) {
       process.stdin.on('data', chunk => {
