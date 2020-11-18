@@ -140,6 +140,7 @@ export class Micro {
   static logger = new Logger();
   static get status() { return status; };
   static get service() { return this._service as Readonly<Service>; };
+  static get subServices() { return this._subServicesList as Readonly<Service[]>; };
   static get config() { return serviceConfig as Readonly<ServiceConfig & { name: string }>; };
   static readonly store: { [key: string]: any } = {};
 
