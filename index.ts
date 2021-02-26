@@ -200,7 +200,8 @@ export class Micro {
     this._service = new ServiceClass();
     Micro.logger.level = serviceConfig.logLevel;
 
-    for (let subService of subServices) this._subServicesList.push(new subService());
+    if (subServices?.length > 0)
+      for (let subService of subServices) this._subServicesList.push(new subService());
 
     if (typeof Micro._service.log === 'function' && serviceConfig.transferLog)
       Micro.logger.transferTo(Micro._service);
