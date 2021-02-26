@@ -81,16 +81,16 @@ export function WORKER_MSG(processMsg: string) {
  * exit process if config.exitOnUnhandledException is set to true
  */
 process
-  .on('unhandledRejection', (reason, p) => {
-    Micro.logger.error('Unhandled Rejection', { reason });
+  .on('unhandledRejection', (reason: any, p) => {
+    Micro.logger.error('Unhandled Rejection', reason?.message || reason);
     if (Micro.service && typeof Micro.service.onUnhandledRejection === "function") Micro.service.onUnhandledRejection(reason, p);
     else {
-      if (p) p.catch(err => Micro.logger.error(err));
+      if (p) p.catch(err => Micro.logger.error('Unhandled Rejection', err));
       if (serviceConfig) serviceConfig.exitOnInhandledRejection && Micro.exit(1, "SIGTERM");
     }
   })
   .on('uncaughtException', err => {
-    Micro.logger.error('uncaughtException', { err });
+    Micro.logger.error('uncaughtException', err?.message || err);
     if (Micro.service && typeof Micro.service.onUnhandledException === "function") Micro.service.onUnhandledException(err);
     else if (serviceConfig) serviceConfig.exitOnUnhandledException && Micro.exit(1, "SIGTERM");
   });
