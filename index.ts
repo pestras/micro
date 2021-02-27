@@ -1,13 +1,21 @@
 import * as cluster from 'cluster';
 import { LOGLEVEL, Logger } from './logger';
 import { WorkersManager, WorkerMessage } from './workers';
+import { writeFile } from 'fs';
+import { join } from 'path';
 
 export { LOGLEVEL };
+
+export interface HealthState {
+  healthy?: boolean;
+  ready?: boolean;
+  live?: boolean;
+}
 
 /**
  * Service Interface
  */
-interface Service {
+interface Service extends HealthState {
   [key: string]: any;
 }
 
@@ -27,6 +35,7 @@ export interface ServiceConfig {
   workers?: number;
   logLevel?: LOGLEVEL;
   transferLog?: boolean;
+  healthCheck?: boolean;
   exitOnUnhandledException?: boolean;
   exitOnInhandledRejection?: boolean;
 }
@@ -46,6 +55,7 @@ export function SERVICE(config: ServiceConfig = {}) {
       stdin: config.stdin === false ? false : true,
       workers: config.workers || 0,
       logLevel: config.logLevel || LOGLEVEL.INFO,
+      healthCheck: config.healthCheck === undefined ? true : config.healthCheck,
       transferLog: !!config.transferLog,
       exitOnUnhandledException: config.exitOnUnhandledException === undefined ? true : !!config.exitOnUnhandledException,
       exitOnInhandledRejection: config.exitOnInhandledRejection === undefined ? true : !!config.exitOnInhandledRejection
@@ -116,7 +126,11 @@ export interface SubServiceEvents {
 }
 
 /** Micro Plugin Abstract Class */
-export abstract class MicroPlugin {
+export abstract class MicroPlugin implements HealthState {
+
+  public healthy = false;
+  public ready = false;
+  public live = false;
 
   abstract init(): void | Promise<void>;
 
@@ -132,6 +146,8 @@ export abstract class MicroPlugin {
  * Starts Service
  */
 export class Micro {
+  private static _lastHealthState: HealthState = { healthy: false, ready: false, live: false };
+  private static _isHealthy = false;
   private static _service: Service;
   private static _subServicesList: Service[] = [];
   /** plugins repo */
@@ -142,6 +158,37 @@ export class Micro {
   static get service() { return this._service as Readonly<Service>; };
   static get subServices() { return this._subServicesList as Readonly<Service[]>; };
   static get config() { return serviceConfig as Readonly<ServiceConfig & { name: string }>; };
+
+  private static _updateHealthState() {
+    let newState: HealthState = { healthy: true, ready: true, live: true };
+
+    for (let plugin of this._plugins) {
+      newState.healthy = newState.healthy ? (plugin.healthy === undefined ? true : plugin.healthy) : false;
+      newState.ready = newState.ready ? (plugin.ready === undefined ? true : plugin.ready) : false;
+      newState.live = newState.live ? (plugin.live === undefined ? true : plugin.live) : false;
+    }
+
+    newState.healthy = newState.healthy ? (Micro.service.healthy === undefined ? true : Micro.service.healthy) : false;
+    newState.ready = newState.ready ? (Micro.service.ready === undefined ? true : Micro.service.ready) : false;
+    newState.live = newState.live ? (Micro.service.live === undefined ? true : Micro.service.live) : false;
+
+    if (Micro.subServices) {
+      for (let subService of Micro.subServices) {
+        newState.healthy = newState.healthy ? (subService.healthy === undefined ? true : subService.healthy) : false;
+        newState.ready = newState.ready ? (subService.ready === undefined ? true : subService.ready) : false;
+        newState.live = newState.live ? (subService.live === undefined ? true : subService.live) : false;
+      }
+    }
+
+    if (newState.healthy !== Micro._lastHealthState.healthy || newState.ready !== Micro._lastHealthState.ready || newState.live !== Micro._lastHealthState.live) {
+      Micro._isHealthy = Micro._lastHealthState.healthy && Micro._lastHealthState.ready && Micro._lastHealthState.live;
+      writeFile(join(process.cwd(), "__health"), JSON.stringify(newState), (e) => {
+        if (e) Micro.logger.error("error updating health state", e.message);
+        setTimeout(Micro._updateHealthState, Micro._isHealthy ? 10000 : 1000);
+      });
+    }
+  }
+
   static readonly store: { [key: string]: any } = {};
 
   static plugin(plugin: MicroPlugin) {
@@ -264,7 +311,7 @@ export class Micro {
     for (let subService of Micro._subServicesList)
       if (typeof subService.onReady === "function") subService.onReady();
 
-    if (this.config.stdin) {
+    if (Micro.config.stdin) {
       process.stdin.on('data', chunk => {
         for (let plugin of this._plugins)
           if (typeof plugin.onStdin === "function") plugin.onStdin(chunk);
@@ -284,5 +331,8 @@ export class Micro {
             if (typeof subService.onStdinEnd === "function") subService.onStdinEnd();
         });
     }
+
+    if (Micro.config.healthCheck)
+      setTimeout(Micro._updateHealthState, 1000);
   }
 }

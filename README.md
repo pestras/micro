@@ -32,9 +32,10 @@ class Test {}
 
 Name        | Type     | Defualt         | Description
 ----        | -----    | ------          | -----
-workers     | number   | 0               | Number of node workers to run, if assigned to minus value will take max number of workers depending on os max cpus number
+workers     | number   | 0               | Number of node workers to run, if assigned to minus value will take max number of workers depending on os max cpus number.
 logLevel    | LOGLEVEL | LOGLEVEL.INFO   |
-tranferLog  | boolean  | false           | Allow logger to transfer logs to the service **onLog** method
+tranferLog  | boolean  | false           | Allow logger to transfer logs to the service **onLog** method.
+healthCheck | boolean  | true            | Enable health check interval. 
 exitOnUnhandledException | boolean | true |
 exitOnUnhandledRejection | boolean | true |
 
@@ -340,20 +341,44 @@ class Publisher implements ServiceEvents {
 
 # Health Check
 
-For health check in Dockerfile or docker-compose
+**PMS** makes an interval check for the service health state members *(healthy, ready, live)*, and any value that is **undefined** will be considered as **true** value.
+
+```ts
+@SERVICE({ workers: 4 })
+class Publisher implements ServiceEvents, HealthState {
+  healthy = false;
+  ready = false;
+  live = false;
+
+  async onInit() {
+    this.healthy = true;
+
+    // check readiness
+    this.ready = true;
+
+    // check liveness
+    this.live = true;
+  }
+}
+```
+
+Be aware that even plugins are health checked as well, so even your service is healthy that does not mean that the healthcheck result should be healthy as well.
+
+Even sub services have their individual health check. 
+
+To complete the health check process you need to enable health check in Dockerfile or docker-compose, as well as readiness and liveness check in k8s if used.
 
 ```Dockerfile
-HEALTHCHECK --interval=30s --timeout=2s CMD node ./node_modules/@pestras/microservice/hc.js /articles/v0 3000
+HEALTHCHECK --interval=30s --timeout=2s CMD node ./node_modules/@pestras/microservice/hc.js
 ```
 
 ```yml
 healthcheck:
-  test: ["CMD", "node", "./node_modules/@pestras/microservice/hc.js", "/articles/v0", "3000"]
+  test: ["CMD", "node", "./node_modules/@pestras/microservice/hc.js"]
   interval: 1m30s
   timeout: 10s
   retries: 3
   start_period: 40s
 ```
-Root path is required as the first parameter, while port defaults to 3000, however router plugin should be used
 
 Thank you

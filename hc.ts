@@ -1,40 +1,25 @@
-import * as http from 'http';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
-let serviceRootURL = process.argv[2];
-let port = process.argv[3];
-
-if (!serviceRootURL) {
-  console.log('service root path required');
-  process.exit(1);
+interface State {
+  healthy: boolean;
+  ready: boolean;
+  live: boolean;
 }
 
-let timer: NodeJS.Timer;
-let req = http.request({
-  hostname: 'localhost',
-  port: port || 3000,
-  path: serviceRootURL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
+let check: keyof State = <keyof State>process.argv[2] || "healthy";
+
+let healthFilePath = join(process.cwd(), "__health");
+
+try {
+  let data = readFileSync(healthFilePath, "utf-8");
+  if (!data) process.exit(1);
+  else {
+    let state: State = JSON.parse(data);
+
+    if (state[check]) process.exit(0);
+    else process.exit(1);
   }
-}, res => {
-  clearTimeout(timer);
-  console.info('STATUS:', res.statusCode);
-  if (res.statusCode === 200) return process.exit(0);
+} catch (e) {
   process.exit(1);
-});
-
-req.on('error', e => {
-  clearTimeout(timer);
-  console.error('Error:', e?.message || e);
-  process.exit(1);
-});
-
-req.end();
-
-timer = setTimeout(() => {
-  req.abort();
-  console.error('Error:', 'request timeout!');
-  process.exit(1);
-}, 30000);
-
+}
