@@ -163,7 +163,7 @@ export class Micro {
     let newState: HealthState = { healthy: true, ready: true, live: true };
     
     if (Micro._plugins){
-      for (let plugin of this._plugins) {
+      for (let plugin of Micro._plugins) {
         newState.healthy = newState.healthy ? (plugin.healthy === undefined ? true : plugin.healthy) : false;
         newState.ready = newState.ready ? (plugin.ready === undefined ? true : plugin.ready) : false;
         newState.live = newState.live ? (plugin.live === undefined ? true : plugin.live) : false;
@@ -194,7 +194,7 @@ export class Micro {
   static readonly store: { [key: string]: any } = {};
 
   static plugin(plugin: MicroPlugin) {
-    if (!this._plugins.includes(plugin)) this._plugins.push(plugin);
+    if (!Micro._plugins.includes(plugin)) Micro._plugins.push(plugin);
   }
 
   /**
@@ -222,8 +222,8 @@ export class Micro {
     status = MICRO_STATUS.EXIT;
     Micro.logger.info(`cleaning up before exit`);
 
-    if (this._plugins)
-      for (let plugin of this._plugins)
+    if (Micro._plugins)
+      for (let plugin of Micro._plugins)
         if (typeof plugin.onExit === 'function') plugin.onExit(code, signal);
 
     if (typeof Micro._service.onExit === 'function') Micro._service.onExit(code, signal);
@@ -316,7 +316,7 @@ export class Micro {
     if (Micro.config.stdin) {
       process.stdin.on('data', chunk => {
         if (Micro._plugins) {
-          for (let plugin of this._plugins)
+          for (let plugin of Micro._plugins)
             if (typeof plugin.onStdin === "function") plugin.onStdin(chunk);
         }
 
@@ -327,7 +327,7 @@ export class Micro {
       })
         .on('end', () => {
           if (Micro._plugins) {
-          for (let plugin of this._plugins)
+          for (let plugin of Micro._plugins)
             if (typeof plugin.onStdinEnd === "function") plugin.onStdinEnd();
           }
 
