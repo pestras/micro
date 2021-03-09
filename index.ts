@@ -161,11 +161,13 @@ export class Micro {
 
   private static _updateHealthState() {
     let newState: HealthState = { healthy: true, ready: true, live: true };
-
-    for (let plugin of this._plugins) {
-      newState.healthy = newState.healthy ? (plugin.healthy === undefined ? true : plugin.healthy) : false;
-      newState.ready = newState.ready ? (plugin.ready === undefined ? true : plugin.ready) : false;
-      newState.live = newState.live ? (plugin.live === undefined ? true : plugin.live) : false;
+    
+    if (Micro._plugins){
+      for (let plugin of this._plugins) {
+        newState.healthy = newState.healthy ? (plugin.healthy === undefined ? true : plugin.healthy) : false;
+        newState.ready = newState.ready ? (plugin.ready === undefined ? true : plugin.ready) : false;
+        newState.live = newState.live ? (plugin.live === undefined ? true : plugin.live) : false;
+      }
     }
 
     newState.healthy = newState.healthy ? (Micro.service.healthy === undefined ? true : Micro.service.healthy) : false;
@@ -220,7 +222,7 @@ export class Micro {
     status = MICRO_STATUS.EXIT;
     Micro.logger.info(`cleaning up before exit`);
 
-    if (this._plugins.length)
+    if (this._plugins)
       for (let plugin of this._plugins)
         if (typeof plugin.onExit === 'function') plugin.onExit(code, signal);
 
@@ -313,8 +315,10 @@ export class Micro {
 
     if (Micro.config.stdin) {
       process.stdin.on('data', chunk => {
-        for (let plugin of this._plugins)
-          if (typeof plugin.onStdin === "function") plugin.onStdin(chunk);
+        if (Micro._plugins) {
+          for (let plugin of this._plugins)
+            if (typeof plugin.onStdin === "function") plugin.onStdin(chunk);
+        }
 
         if (typeof this._service.onStdin === "function") this._service.onStdin(chunk);
 
@@ -322,8 +326,10 @@ export class Micro {
           if (typeof subService.onStdin === "function") subService.onStdin(chunk);
       })
         .on('end', () => {
+          if (Micro._plugins) {
           for (let plugin of this._plugins)
             if (typeof plugin.onStdinEnd === "function") plugin.onStdinEnd();
+          }
 
           if (typeof this._service.onStdinEnd === "function") this._service.onStdinEnd();
 
