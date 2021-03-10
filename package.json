@@ -32,5 +32,8 @@
     "typescript": "^3.9.6",
     "@types/node": "^14.0.22"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "bin": {
+    "health-check": "./bin/hc.js"
+  }
 }

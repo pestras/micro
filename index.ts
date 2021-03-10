@@ -4,6 +4,8 @@ import { WorkersManager, WorkerMessage } from './workers';
 import { writeFile } from 'fs';
 import { join } from 'path';
 
+const HEALTH_CHECK_DIR = process.env.HEALTH_CHECK_DIR || "~/";
+
 export { LOGLEVEL };
 
 export interface HealthState {
@@ -181,7 +183,7 @@ export class Micro {
 
     if (newState.healthy !== Micro._lastHealthState.healthy || newState.ready !== Micro._lastHealthState.ready || newState.live !== Micro._lastHealthState.live) {
       Micro._isHealthy = Micro._lastHealthState.healthy && Micro._lastHealthState.ready && Micro._lastHealthState.live;
-      writeFile(join(process.cwd(), "__health"), JSON.stringify(newState), (e) => {
+      writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), (e) => {
         if (e) Micro.logger.error("error updating health state", e.message);
         setTimeout(Micro._updateHealthState, Micro._isHealthy ? 10000 : 1000);
       });

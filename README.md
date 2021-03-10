@@ -364,21 +364,25 @@ class Publisher implements ServiceEvents, HealthState {
 
 Be aware that even plugins are health checked as well, so even your service is healthy that does not mean that the healthcheck result should be healthy as well.
 
-Even sub services have their individual health check. 
+Even sub services have their individual health check.
+
+Healh state is saved in a file under a directory specicfied in **HEALTH_CHECK_DIR** environment variable, defaults to **"~/"**.
 
 To complete the health check process you need to enable health check in Dockerfile or docker-compose, as well as readiness and liveness check in k8s if used.
 
 ```Dockerfile
-HEALTHCHECK --interval=30s --timeout=2s CMD node ./node_modules/@pestras/microservice/hc.js
+HEALTHCHECK --interval=30s --timeout=2s CMD npx health-check healthy
 ```
 
 ```yml
 healthcheck:
-  test: ["CMD", "node", "./node_modules/@pestras/microservice/hc.js"]
+  test: ["CMD", "npx", "health-check", "healthy"]
   interval: 1m30s
   timeout: 10s
   retries: 3
   start_period: 40s
 ```
+
+Last argument can be one of **(healthy, ready, live)** kewords, it is optional defaults to **healthy**.
 
 Thank you
