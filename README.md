@@ -289,7 +289,7 @@ class Test implements ServiceEvents {
 }
 ```
 
-## onStdin, onStdinEnd
+## onStdin
 
 **PMS** listens to **stdin** by default unless it is disabled in service config decorator, it will call this event whenerver inputs are injected to stdin.
 
@@ -302,10 +302,10 @@ class Test implements ServiceEvents {
   onStdin(chunk: Buffer) {
     console.log(chunk.toString());
   }
-
-  onStdinEnd() {}
 }
 ```
+
+"exit" input will exit the process.
 
 ## onUnhandledRejection
 

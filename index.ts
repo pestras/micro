@@ -112,7 +112,6 @@ export interface ServiceEvents {
   onReady?: () => void;
   onExit?: (code: number, signal: NodeJS.Signals) => void;
   onStdin?: (chunk: Buffer) => void;
-  onStdinEnd?: () => void;
   onUnhandledRejection?: (reason: any, p: Promise<any>) => void;
   onUnhandledException?: (err: any) => void;
 }
@@ -122,7 +121,6 @@ export interface SubServiceEvents {
   onReady?: () => void;
   onExit?: (code: number, signal: NodeJS.Signals) => void;
   onStdin?: (chunk: Buffer) => void;
-  onStdinEnd?: () => void;
 }
 
 /** Micro Plugin Abstract Class */
@@ -137,7 +135,6 @@ export abstract class MicroPlugin implements HealthState {
   onStdin?: (chunk: Buffer) => void;
   onReady?: () => void;
   onExit?(code: number, signal: NodeJS.Signals): void;
-  onStdinEnd?: () => void;
 }
 
 /**
@@ -315,6 +312,9 @@ export class Micro {
 
     if (Micro.config.stdin) {
       process.stdin.on('data', chunk => {
+        if (chunk.toString().trim().toLowerCase() === "exit")
+          return Micro.exit(0);
+
         if (Micro._plugins) {
           for (let plugin of Micro._plugins)
             if (typeof plugin.onStdin === "function") plugin.onStdin(chunk);
@@ -324,18 +324,7 @@ export class Micro {
 
         for (let subService of this._subServicesList)
           if (typeof subService.onStdin === "function") subService.onStdin(chunk);
-      })
-        .on('end', () => {
-          if (Micro._plugins) {
-          for (let plugin of Micro._plugins)
-            if (typeof plugin.onStdinEnd === "function") plugin.onStdinEnd();
-          }
-
-          if (typeof this._service.onStdinEnd === "function") this._service.onStdinEnd();
-
-          for (let subService of this._subServicesList)
-            if (typeof subService.onStdinEnd === "function") subService.onStdinEnd();
-        });
+      });
     }
 
     if (Micro.config.healthCheck)
