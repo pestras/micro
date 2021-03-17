@@ -3,7 +3,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const HEALTH_CHECK_DIR = process.env.HEALTH_CHECK_DIR || "~/";
+const HEALTH_CHECK_DIR = process.env.HEALTH_CHECK_DIR || "";
 
 interface State {
   healthy: boolean;

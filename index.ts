@@ -4,7 +4,7 @@ import { WorkersManager, WorkerMessage } from './workers';
 import { writeFile } from 'fs';
 import { join } from 'path';
 
-const HEALTH_CHECK_DIR = process.env.HEALTH_CHECK_DIR || "~/";
+const HEALTH_CHECK_DIR = process.env.HEALTH_CHECK_DIR || "";
 
 export { LOGLEVEL };
 
@@ -54,7 +54,7 @@ export function SERVICE(config: ServiceConfig = {}) {
   return (constructor: any) => {
     serviceConfig = {
       name: constructor.name.toLowerCase(),
-      stdin: config.stdin === false ? false : true,
+      stdin: !!config.stdin,
       workers: config.workers || 0,
       logLevel: config.logLevel || LOGLEVEL.INFO,
       healthCheck: config.healthCheck === undefined ? true : config.healthCheck,

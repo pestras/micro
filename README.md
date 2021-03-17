@@ -9,7 +9,8 @@ Although **PMS** is almost empty of features, its strength comes handy through i
 * **@pestras/micro-router**: Adds support for HTTP Rest services with very handfull routing feature.
 * **@pestras/micro-socket**: Adds support for SocketIO connection with plenty of usefull decorators.
 * **@pestras/micro-nats**: Adds support for Nats Server messaging system.
-* **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system - *in development not published yet*.
+* **@pestras/micro-kafka**: Adds support for kafka messaging system.
+* **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system.
 
 # Template
 
@@ -35,6 +36,7 @@ Name        | Type     | Defualt         | Description
 workers     | number   | 0               | Number of node workers to run, if assigned to minus value will take max number of workers depending on os max cpus number.
 logLevel    | LOGLEVEL | LOGLEVEL.INFO   |
 tranferLog  | boolean  | false           | Allow logger to transfer logs to the service **onLog** method.
+stdin       | boolean  | false           | listen on stdin data event.
 healthCheck | boolean  | true            | Enable health check interval. 
 exitOnUnhandledException | boolean | true |
 exitOnUnhandledRejection | boolean | true |
