@@ -38,8 +38,6 @@ export interface ServiceConfig {
   logLevel?: LOGLEVEL;
   transferLog?: boolean;
   healthCheck?: boolean;
-  exitOnUnhandledException?: boolean;
-  exitOnInhandledRejection?: boolean;
 }
 
 /** Service config object */
@@ -58,9 +56,7 @@ export function SERVICE(config: ServiceConfig = {}) {
       workers: config.workers || 0,
       logLevel: config.logLevel || LOGLEVEL.INFO,
       healthCheck: config.healthCheck === undefined ? true : config.healthCheck,
-      transferLog: !!config.transferLog,
-      exitOnUnhandledException: config.exitOnUnhandledException === undefined ? true : !!config.exitOnUnhandledException,
-      exitOnInhandledRejection: config.exitOnInhandledRejection === undefined ? true : !!config.exitOnInhandledRejection
+      transferLog: !!config.transferLog
     };
   }
 }
@@ -94,17 +90,20 @@ export function WORKER_MSG(processMsg: string) {
  */
 process
   .on('unhandledRejection', (reason: any, p) => {
-    Micro.logger.error('Unhandled Rejection', reason?.message || reason);
-    if (Micro.service && typeof Micro.service.onUnhandledRejection === "function") Micro.service.onUnhandledRejection(reason, p);
-    else {
-      if (p) p.catch(err => Micro.logger.error('Unhandled Rejection', err));
-      if (serviceConfig) serviceConfig.exitOnInhandledRejection && Micro.exit(1, "SIGTERM");
-    }
+    !! reason && Micro.logger.error(reason);
+
+    if (p) {
+      p.catch(err => {
+        Micro.logger.error(err)
+        Micro.exit(1, "SIGTERM");
+      });
+
+    } else
+      Micro.exit(1, "SIGTERM");
   })
   .on('uncaughtException', err => {
-    Micro.logger.error('uncaughtException', err?.message || err);
-    if (Micro.service && typeof Micro.service.onUnhandledException === "function") Micro.service.onUnhandledException(err);
-    else if (serviceConfig) serviceConfig.exitOnUnhandledException && Micro.exit(1, "SIGTERM");
+    Micro.logger.error(err);
+    Micro.exit(1, "SIGTERM");
   });
 
 /** Service Core Events Interface */
@@ -114,8 +113,6 @@ export interface ServiceEvents {
   onReady?: () => void;
   onExit?: (code: number, signal: NodeJS.Signals) => void;
   onStdin?: (chunk: Buffer) => void;
-  onUnhandledRejection?: (reason: any, p: Promise<any>) => void;
-  onUnhandledException?: (err: any) => void;
 }
 
 export interface SubServiceEvents {
@@ -160,8 +157,8 @@ export class Micro {
 
   private static _updateHealthState() {
     let newState: HealthState = { healthy: true, ready: true, live: true };
-    
-    if (Micro._plugins){
+
+    if (Micro._plugins) {
       for (let plugin of Micro._plugins) {
         newState.healthy = newState.healthy ? (plugin.healthy === undefined ? true : plugin.healthy) : false;
         newState.ready = newState.ready ? (plugin.ready === undefined ? true : plugin.ready) : false;
@@ -184,7 +181,7 @@ export class Micro {
     if (newState.healthy !== Micro._lastHealthState.healthy || newState.ready !== Micro._lastHealthState.ready || newState.live !== Micro._lastHealthState.live) {
       Micro._isHealthy = Micro._lastHealthState.healthy && Micro._lastHealthState.ready && Micro._lastHealthState.live;
       writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), (e) => {
-        if (e) Micro.logger.error("error updating health state", e.message);
+        if (e) Micro.logger.error(e, "error updating health state");
         setTimeout(Micro._updateHealthState, Micro._isHealthy ? 10000 : 1000);
       });
     }

@@ -37,9 +37,7 @@ workers     | number   | 0               | Number of node workers to run, if ass
 logLevel    | LOGLEVEL | LOGLEVEL.INFO   |
 tranferLog  | boolean  | false           | Allow logger to transfer logs to the service **onLog** method.
 stdin       | boolean  | false           | listen on stdin data event.
-healthCheck | boolean  | true            | Enable health check interval. 
-exitOnUnhandledException | boolean | true |
-exitOnUnhandledRejection | boolean | true |
+healthCheck | boolean  | true            | Enable health check interval.
 
 #### LOGLEVEL Enum
 
@@ -308,38 +306,6 @@ class Test implements ServiceEvents {
 ```
 
 "exit" input will exit the process.
-
-## onUnhandledRejection
-
-Defining this handler will cancel **exitOnUnhandledRejection** option in service config, so you need to exit manually if it needs to be.
-
-```ts
-@SERVICE({ workers: 4 })
-class Publisher implements ServiceEvents {
-
-  onUnhandledRejection(reason: any, p: Promise<any>) {
-    // do somethig with the error and then maybe exit
-    // calling Micro.exit() will trigger onExit EventHandler
-    Micro.exit(1);
-  }
-}
-```
-
-## onUnhandledException
-
-Defining this handler will cancel **exitOnUnhandledException** option in service config, so you need to exit manually if it needs to be.
-
-```ts
-@SERVICE({ workers: 4 })
-class Publisher implements ServiceEvents {
-
-  onUnhandledException(err: any) {
-    // do somethig with the error and then maybe exit
-    // calling Micro.exit() will trigger onExit EventHandler
-    Micro.exit(1);
-  }
-}
-```
 
 # Health Check
 

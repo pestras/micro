@@ -60,26 +60,39 @@ export class Logger {
     return data;
   }
 
-  onLog(mode: LOGLEVEL, msg: any, meta?: any) {
-    let color = (<any>COLOR)[LOGLEVEL[mode]];
-    console[<'log'>LOGLEVEL[mode].toLowerCase()](`${color}%s${COLOR.RESET} %s${COLOR.DATE} %s${COLOR.RESET}`, `[${LOGLEVEL[mode]}: ${process.pid}]`, msg, new Date().toTimeString());
-    !!meta && console[<'log'>LOGLEVEL[mode].toLowerCase()](`${color}%s${COLOR.RESET} %s${COLOR.DATE} %s${COLOR.RESET}`, `[${LOGLEVEL[mode]}: ${process.pid}]`, this.stringify(meta), new Date().toTimeString());
-    if (mode === LOGLEVEL.ERROR && msg.stack) console.error(`${COLOR.ERROR}%s${COLOR.RESET}`, `[ERROR: ${process.pid}]`, this.stringify(msg.stack));
+  private onLog(mode: LOGLEVEL, msg: string) {
+    console.error(
+      `${(<any>COLOR)[LOGLEVEL[mode]]}%s${COLOR.RESET} %s${COLOR.DATE} %s${COLOR.RESET}`,
+      `[${LOGLEVEL[LOGLEVEL.ERROR]}: ${process.pid}]`,
+      msg,
+      new Date().toTimeString()
+    );
   }
 
   debug(msg: any, meta?: any) {
-    (LOGLEVEL.DEBUG <= this.level) && (<Logger>this.context).onLog(LOGLEVEL.DEBUG, msg, meta);
+    if (LOGLEVEL.DEBUG <= this.level) {
+      (<Logger>this.context).onLog(LOGLEVEL.DEBUG, msg);
+      !!meta && (<Logger>this.context).onLog(LOGLEVEL.DEBUG, this.stringify(meta));
+    };
   }
 
   info(msg: any, meta?: any) {
-    (LOGLEVEL.INFO <= this.level) && (<Logger>this.context).onLog(LOGLEVEL.INFO, msg, meta);
+    if (LOGLEVEL.INFO <= this.level) {
+      (<Logger>this.context).onLog(LOGLEVEL.INFO, msg);
+      !!meta && (<Logger>this.context).onLog(LOGLEVEL.INFO, this.stringify(meta));
+    };
   }
 
   warn(msg: any, meta?: any) {
-    (LOGLEVEL.WARN <= this.level) && (<Logger>this.context).onLog(LOGLEVEL.WARN, msg, meta);
+    if (LOGLEVEL.WARN <= this.level) {
+      (<Logger>this.context).onLog(LOGLEVEL.WARN, msg);
+      !!meta && (<Logger>this.context).onLog(LOGLEVEL.WARN, this.stringify(meta));
+    };
   }
 
-  error(msg: any, meta?: any) {
-    (LOGLEVEL.ERROR <= this.level) && (<Logger>this.context).onLog(LOGLEVEL.ERROR, msg, meta);
+  error(error: Error, extraMessage?: string) {
+    !!extraMessage && (<Logger>this.context).onLog(LOGLEVEL.ERROR, error.message);
+    (<Logger>this.context).onLog(LOGLEVEL.ERROR, error.message);
+    console.trace(error);
   }
 }
