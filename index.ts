@@ -180,7 +180,7 @@ export class Micro {
 
     if (newState.healthy !== Micro._lastHealthState.healthy || newState.ready !== Micro._lastHealthState.ready || newState.live !== Micro._lastHealthState.live) {
       Micro._isHealthy = Micro._lastHealthState.healthy && Micro._lastHealthState.ready && Micro._lastHealthState.live;
-      writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), (e) => {
+      writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), { mode: 664 },  (e) => {
         if (e) Micro.logger.error(e, "error updating health state");
         setTimeout(Micro._updateHealthState, Micro._isHealthy ? 10000 : 1000);
       });

@@ -61,9 +61,9 @@ export class Logger {
   }
 
   private onLog(mode: LOGLEVEL, msg: string) {
-    console.error(
+    console[<"log">LOGLEVEL[mode].toLowerCase()](
       `${(<any>COLOR)[LOGLEVEL[mode]]}%s${COLOR.RESET} %s${COLOR.DATE} %s${COLOR.RESET}`,
-      `[${LOGLEVEL[LOGLEVEL.ERROR]}: ${process.pid}]`,
+      `[${LOGLEVEL[mode]}: ${process.pid}]`,
       msg,
       new Date().toTimeString()
     );
