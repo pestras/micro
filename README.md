@@ -12,12 +12,6 @@ Although **PMS** is almost empty of features, its strength comes handy through i
 * **@pestras/micro-kafka**: Adds support for kafka messaging system.
 * **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system.
 
-# Template
-
-```bash
-$ git clone https://github.com/pestras/pestras-micro-template
-```
-
 ## Creating Service
 
 In order to create our service we need to use **SERVICE** decorator which holds the main configuration of our service class.
@@ -69,7 +63,7 @@ Name | Type | Description
 --- | --- | ---
 status | MICRO_STATUS | INIT \| EXIT\| LIVE
 logger | Logger | Micro logger instance
-store | { [key: string]: any } | data store shared among main service and the all subservices and plugins.
+Store | { [key: string]: any } | data store shared among main service and the all subservices and plugins.
 message | (msg: string, data: WorkerMessage, target: 'all' \| 'others') => void | A helper method to broadcast a message between workers
 exit | (code: number = 0, signal: NodeJs.Signal = "SIGTERM") => void | Used to stop service
 plugin | (plugin: MicroPlugin) => void | The only way to inject plugins to our service
@@ -99,7 +93,7 @@ import { Comments} from './comments.service'
 class Articles {
 
   onInit() {    
-    Micro.store.someSharedValue = "shared value";
+    Micro.Store.someSharedValue = "shared value";
   }
 }
 
@@ -108,6 +102,37 @@ Micro.start(Articles, [Comments]);
 ```
 
 Subservices have their own events *onInit, onReady, onStdin and onExit*.
+
+# SHARE Decorator:
+
+There are case when sub serveses need to access each other methods even with the main service,  
+**SHARE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
+
+```ts
+// index.ts
+@SERVICE()
+class ArticlesService {
+
+  @SHARE()
+  async getArticleById(id: string) {
+    // ...our fetch code
+  }
+}
+
+
+// comments-service.ts
+type ArticleGetter = (id: string) => Promise<Article>;
+
+class CommentsService {
+  
+  axync insertComment(articleId: string, comment: string) {
+    // use shared method
+    let article await = (<ArticleGetter>Micro.store.getArticleById)(articleId);
+  }
+}
+```
+
+*Note: shared methods overwite previous methods with same name.*
 
 # Cluster
 

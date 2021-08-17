@@ -82,6 +82,18 @@ export function WORKER_MSG(processMsg: string) {
   }
 }
 
+/** Shared methods map */
+const sharedMethodsMap: { [key: string]: Set<string>; } = {}
+
+
+/** Helps Sharing methods between service and sub services */
+export function STORE() {
+  return function (target: any, key: string) {
+    sharedMethodsMap[target.constructor.name] = sharedMethodsMap[target.constructor.name] || new Set();
+    sharedMethodsMap[target.constructor.name].add(key);
+  }
+}
+
 /**
  * listen to unhandled rejections an exceptions
  * log error
@@ -90,7 +102,7 @@ export function WORKER_MSG(processMsg: string) {
  */
 process
   .on('unhandledRejection', (reason: any, p) => {
-    !! reason && Micro.logger.error(reason);
+    !!reason && Micro.logger.error(reason);
 
     if (p) {
       p.catch(err => {
@@ -180,7 +192,7 @@ export class Micro {
 
     if (newState.healthy !== Micro._lastHealthState.healthy || newState.ready !== Micro._lastHealthState.ready || newState.live !== Micro._lastHealthState.live) {
       Micro._isHealthy = Micro._lastHealthState.healthy && Micro._lastHealthState.ready && Micro._lastHealthState.live;
-      writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), { mode: 664 },  (e) => {
+      writeFile(join(HEALTH_CHECK_DIR, "__health"), JSON.stringify(newState), { mode: 664 }, (e) => {
         if (e) Micro.logger.error(e, "error updating health state");
         setTimeout(Micro._updateHealthState, Micro._isHealthy ? 10000 : 1000);
       });
@@ -245,8 +257,20 @@ export class Micro {
     this._service = new ServiceClass();
     Micro.logger.level = serviceConfig.logLevel;
 
-    if (subServices?.length > 0)
-      for (let subService of subServices) this._subServicesList.push(new subService());
+    if (sharedMethodsMap[this._service.constructor.name])
+      for (let key of sharedMethodsMap[this._service.constructor.name])
+        Micro.store[key] = this._service[key].bind(this._service);
+
+    if (subServices?.length > 0) {
+      for (let subService of subServices) {
+        let s = new subService();
+        this._subServicesList.push(s);
+
+        if (sharedMethodsMap[s.constructor.name])
+          for (let key of sharedMethodsMap[s.constructor.name])
+            Micro.store[key] = s[key].bind(s);
+      }
+    }
 
     if (typeof Micro._service.log === 'function' && serviceConfig.transferLog)
       Micro.logger.transferTo(Micro._service);
