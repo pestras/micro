@@ -103,17 +103,17 @@ Micro.start(Articles, [Comments]);
 
 Subservices have their own events *onInit, onReady, onStdin and onExit*.
 
-# SHARE Decorator:
+# STORE Decorator:
 
 There are case when sub serveses need to access each other methods even with the main service,  
-**SHARE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
+**STORE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
 
 ```ts
 // index.ts
 @SERVICE()
 class ArticlesService {
 
-  @SHARE()
+  @STORE()
   async getArticleById(id: string) {
     // ...our fetch code
   }
