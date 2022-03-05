@@ -45,25 +45,25 @@ export class WorkersManager {
     this.logger.info('restarting workers..');
     this.isRestarting = true;
 
-    function restartWorker(index: number) {
-      const worker = workers[index];
-      cluster.workers
-  
-      if (!worker) return this.isRestarting = false;
-  
-      worker.on('exit', () => {
-        if (worker.exitedAfterDisconnect) return;
-  
-        this.logger.info(`Exited process ${worker.process.pid}`);
-  
-        let newWorker = cluster.fork();
-        newWorker.on('listening', () => restartWorker(index + 1));
-      });
-  
-      worker.disconnect();
-    }
+    this.restartWorker(workers, 0);
+  }
 
-    restartWorker(0);
+  private restartWorker(workers: cluster.Worker[], index: number) {
+    const worker = workers[index];
+    cluster.workers
+
+    if (!worker) return this.isRestarting = false;
+
+    worker.on('exit', () => {
+      if (worker.exitedAfterDisconnect) return;
+
+      this.logger.info(`Exited process ${worker.process.pid}`);
+
+      let newWorker = cluster.fork();
+      newWorker.on('listening', () => this.restartWorker(workers, index + 1));
+    });
+
+    worker.disconnect();
   }
 
   private publishMsg(msg: WorkerMessage, pid?: number) {

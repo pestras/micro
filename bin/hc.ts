@@ -30,7 +30,7 @@ try {
     if (state[check]) process.exit(0);
     else process.exit(1);
   }
-} catch (e) {
+} catch (e: any) {
   console.log("error reading file");
   console.log(e?.message || JSON.stringify(e));
   process.exit(1);

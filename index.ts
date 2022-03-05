@@ -288,7 +288,7 @@ export class Micro {
           if (promise && typeof promise.then === 'function') {
             try {
               await promise;
-            } catch (error) {
+            } catch (error: any) {
               Micro.logger.error(error);
             }
           }
@@ -301,7 +301,7 @@ export class Micro {
       if (promise && typeof promise.then === "function") {
         try {
           await promise;
-        } catch (error) {
+        } catch (error: any) {
           Micro.logger.error(error);
         }
       }
@@ -312,7 +312,7 @@ export class Micro {
         let promise: Promise<any> = subService.onInit();
         if (typeof promise?.then === "function")
           try { await promise; }
-          catch (error) { Micro.logger.error(error); }
+          catch (error: any) { Micro.logger.error(error); }
       }
     }
 

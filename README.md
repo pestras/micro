@@ -6,11 +6,11 @@ Although **PMS** is almost empty of features, its strength comes handy through i
 
 ## Official Plugins
 
-* **@pestras/micro-router**: Adds support for HTTP Rest services with very handfull routing feature.
-* **@pestras/micro-socket**: Adds support for SocketIO connection with plenty of usefull decorators.
-* **@pestras/micro-nats**: Adds support for Nats Server messaging system.
-* **@pestras/micro-kafka**: Adds support for kafka messaging system.
-* **@pestras/micro-rabbitmq**: Adds support for RabbitMQ messaging system.
+* **[@pestras/micro-router](https://www.npmjs.com/package/@pestras/micro-router)**: Adds support for HTTP Rest services with very handfull routing feature.
+* **[@pestras/micro-socket](https://www.npmjs.com/package/@pestras/micro-socket)**: Adds support for SocketIO connection with plenty of usefull decorators.
+* **[@pestras/micro-rabbitmq](https://www.npmjs.com/package/@pestras/micro-rabbitmq)**: Adds support for RabbitMQ messaging system.
+* **[@pestras/micro-nats](https://www.npmjs.com/package/@pestras/micro-nats)**: Adds support for Nats Server messaging system.
+* **[@pestras/micro-kafka](https://www.npmjs.com/package/@pestras/micro-kafka)**: Adds support for kafka messaging system.
 
 ## Creating Service
 
@@ -19,7 +19,7 @@ In order to create our service we need to use **SERVICE** decorator which holds 
 ```ts
 import { SERVICE } from '@pestras/microservice';
 
-@SERVICE({ version: 1 })
+@SERVICE()
 class Test {}
 ```
 
@@ -105,7 +105,7 @@ Subservices have their own events *onInit, onReady, onStdin and onExit*.
 
 # STORE Decorator:
 
-There are case when sub serveses need to access each other methods even with the main service,  
+There are cases when sub serveses need to access each other methods even with the main service,  
 **STORE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
 
 ```ts
@@ -125,14 +125,14 @@ type ArticleGetter = (id: string) => Promise<Article>;
 
 class CommentsService {
   
-  axync insertComment(articleId: string, comment: string) {
+  async insertComment(articleId: string, comment: string) {
     // use shared method
     let article await = (<ArticleGetter>Micro.store.getArticleById)(articleId);
   }
 }
 ```
 
-*Note: shared methods overwite previous methods with same name.*
+*Note: stored methods overwite previous methods with same name.*
 
 # Cluster
 
