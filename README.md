@@ -63,7 +63,7 @@ Name | Type | Description
 --- | --- | ---
 status | MICRO_STATUS | INIT \| EXIT\| LIVE
 logger | Logger | Micro logger instance
-Store | { [key: string]: any } | data store shared among main service and the all subservices and plugins.
+store | () => any | return data store shared among main service and the all subservices and plugins.
 message | (msg: string, data: WorkerMessage, target: 'all' \| 'others') => void | A helper method to broadcast a message between workers
 exit | (code: number = 0, signal: NodeJs.Signal = "SIGTERM") => void | Used to stop service
 plugin | (plugin: MicroPlugin) => void | The only way to inject plugins to our service
@@ -80,7 +80,9 @@ import { SubServiceEvents } from '@pestras/microservice';
 
 export class Comments implements SubServiceEvents {
 
-  async onInit() {}
+  async onInit() {
+    const sharedValue = Micro.store("someSharedValue");
+  }
 }
 ```
 
@@ -93,7 +95,7 @@ import { Comments} from './comments.service'
 class Articles {
 
   onInit() {    
-    Micro.Store.someSharedValue = "shared value";
+    Micro.store("someSharedValue", "shared value");
   }
 }
 
@@ -109,6 +111,13 @@ There are cases when sub serveses need to access each other methods even with th
 **STORE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
 
 ```ts
+// store.interface.ts
+export MicroStore {
+  getArticleById: (id: string) => Promise<Article>
+}
+```
+
+```ts
 // index.ts
 @SERVICE()
 class ArticlesService {
@@ -121,13 +130,11 @@ class ArticlesService {
 
 
 // comments-service.ts
-type ArticleGetter = (id: string) => Promise<Article>;
-
 class CommentsService {
   
   async insertComment(articleId: string, comment: string) {
     // use shared method
-    let article await = (<ArticleGetter>Micro.store.getArticleById)(articleId);
+    let article await = Micro.store<MicroStore>().getArticleById(articleId);
   }
 }
 ```
