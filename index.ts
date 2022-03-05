@@ -83,14 +83,14 @@ export function WORKER_MSG(processMsg: string) {
 }
 
 /** Shared methods map */
-const sharedMethodsMap: { [key: string]: Set<string>; } = {}
+const sharedMethodsMap: { [key: string]: { key: string; store: Store}[]; } = {}
 
 
 /** Helps Sharing methods between service and sub services */
-export function STORE() {
+export function STORE<T = any>(store: Store<T>) {
   return function (target: any, key: string) {
-    sharedMethodsMap[target.constructor.name] = sharedMethodsMap[target.constructor.name] || new Set();
-    sharedMethodsMap[target.constructor.name].add(key);
+    sharedMethodsMap[target.constructor.name] = sharedMethodsMap[target.constructor.name] || [];
+    sharedMethodsMap[target.constructor.name].push({ key, store });
   }
 }
 
@@ -148,6 +148,22 @@ export abstract class MicroPlugin implements HealthState {
   onExit?(code: number, signal: NodeJS.Signals): void;
 }
 
+export class Store<T extends Object = Object> {
+  private _data: T = <T>{};
+
+  get<U extends keyof T>(key: U): T[U] {
+    return this._data[key];
+  }
+
+  set<U extends keyof T>(key: U, value: T[U]): void {
+    this._data[key] = value;
+  }
+
+  clear() {
+    this._data = <T>{};
+  }
+}
+
 /**
  * Micro Class:
  * Initialize Plugins
@@ -198,21 +214,6 @@ export class Micro {
       });
     }
   }
-
-  private static readonly _store: { [key: string]: any } = {};
-
-  static store<T extends Object>(): T
-  static store<T extends Object, U extends keyof T>(key: keyof T): T[U]
-  static store<T extends Object, U extends keyof T>(key: keyof T, value: T[U]): void
-  static store<T extends Object, U extends keyof T>(key?: U, value?: T[U]): T | T[U] | void {
-    if (!key)
-      return Micro._store as T;
-
-    if (value === undefined)
-      return (this._store as T)[key];
-
-      (this._store as T)[key] = value;
-  };
 
   static plugins(...plugins: MicroPlugin[]) {
     Micro._plugins.push(...plugins.filter(p => !Micro._plugins.includes(p)));
@@ -271,8 +272,8 @@ export class Micro {
     Micro.logger.level = serviceConfig.logLevel;
 
     if (sharedMethodsMap[this._service.constructor.name])
-      for (let key of sharedMethodsMap[this._service.constructor.name])
-        Micro.store(key, this._service[key].bind(this._service));
+      for (let conf of sharedMethodsMap[this._service.constructor.name])
+        conf.store.set(conf.key as any, this._service[conf.key].bind(this._service));
 
     if (subServices?.length > 0) {
       for (let subService of subServices) {
@@ -280,8 +281,8 @@ export class Micro {
         this._subServicesList.push(s);
 
         if (sharedMethodsMap[s.constructor.name])
-          for (let key of sharedMethodsMap[s.constructor.name])
-            Micro.store(key, s[key].bind(s));
+          for (let conf of sharedMethodsMap[s.constructor.name])
+            conf.store.set(conf.key as any, s[conf.key].bind(s));
       }
     }
 

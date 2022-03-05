@@ -81,7 +81,6 @@ import { SubServiceEvents } from '@pestras/microservice';
 export class Comments implements SubServiceEvents {
 
   async onInit() {
-    const sharedValue = Micro.store("someSharedValue");
   }
 }
 ```
@@ -94,8 +93,7 @@ import { Comments} from './comments.service'
 @SERVICE()
 class Articles {
 
-  onInit() {    
-    Micro.store("someSharedValue", "shared value");
+  onInit() { 
   }
 }
 
@@ -111,30 +109,46 @@ There are cases when sub serveses need to access each other methods even with th
 **STORE** decorators adds methods attached to to **Micro** store when each service instanciated, that way can be accessed any where.
 
 ```ts
-// store.interface.ts
+// store.ts
+import { Store } from '@pestras/micro';
+
 export MicroStore {
+  key: string;
   getArticleById: (id: string) => Promise<Article>
 }
+
+export const store = new Store<MicroStore>();
 ```
 
 ```ts
 // index.ts
+import { store } from './store';
+
 @SERVICE()
 class ArticlesService {
 
-  @STORE()
+  onInit() {
+    store.set("key", "value");
+  }
+
+  @STORE(store)
   async getArticleById(id: string) {
     // ...our fetch code
   }
 }
-
-
+```
+```ts
 // comments-service.ts
+import { store } from './store';
+
 class CommentsService {
   
   async insertComment(articleId: string, comment: string) {
+    // access store values
+    store.get('key');
+    
     // use shared method
-    let article await = Micro.store<MicroStore>().getArticleById(articleId);
+    let article await = store.get('getArticleById')(articleId);
   }
 }
 ```
