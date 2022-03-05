@@ -230,7 +230,7 @@ export { MyPlugin };
   import { Micro } from '@pestras/micro';
   import { MyPlugin } from 'mypluginPath';
 
-  Micro.plugin(new MyPlugin(config));
+  Micro.plugins(new MyPlugin(config));
 }
 ```
 

@@ -201,8 +201,8 @@ export class Micro {
 
   static readonly store: { [key: string]: any } = {};
 
-  static plugin(plugin: MicroPlugin) {
-    if (!Micro._plugins.includes(plugin)) Micro._plugins.push(plugin);
+  static plugins(...plugins: MicroPlugin[]) {
+    Micro._plugins.push(...plugins.filter(p => !Micro._plugins.includes(p)));
   }
 
   /**
